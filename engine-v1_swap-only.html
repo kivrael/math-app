@@ -125,8 +125,6 @@ function addButtons(expressionTree) {
   if (history.length>0) {
     button.addEventListener("click", function() {
       rmButtons()
-      //var lastLine = document.createElement('div');
-      //lastLine.innerHTML = expression;
       paragraph.removeChild(paragraph.lastElementChild)
       expression=history.pop()
       findSwapGroups(expression)
