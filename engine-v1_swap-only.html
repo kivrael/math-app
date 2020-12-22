@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>math.js | basic usage</title>
+  <script src="https://unpkg.com/mathjs@8.1.0/lib/browser/math.js"></script>
+  </head>
+<body>
+
+<p><button onclick="myFunction()">Set expression</button><br><br>Your expression is:</p>
+<p id="expression"></p>
+
+<script>
+
+// Determine the rank of each node
+// Save nodes in array
+// Group elements together those that can be swaped between each other
+
+let rank, // order number of nodes when traversing all nodes recursively
+rankToValue, // rank of constant node -> node string
+swapGroups, // groups of elements that can be swaped between each other
+opGroup, // rank of operator node -> swap group number 
+elemGroup, // rank of swapable element node -> swap group number
+nodes; //save each node in this array
+
+function findSwapGroups (expressionTree) {
+
+  swapGroups = [];
+  opGroup = [];
+  rank = 0;
+  nodes = [];
+  elemGroup = [];
+  rankToValue = [];
+
+  expressionTree.traverse(function (node, path, parent) {
+
+    node.rank = rank;
+    nodes.push(node);
+
+    if (node.type === 'OperatorNode' && node.op === '+') { 
+      if (rank === 0) { 
+        swapGroups.push([]); opGroup[0] = 0 }
+      else if (parent.type === 'OperatorNode' && parent.op === '+') { 
+        opGroup[rank] = opGroup[parent.rank] }
+      else {
+        opGroup[rank] = swapGroups.length; swapGroups.push([]) }
+    }
+    else if ( rank !== 0 && parent.type === 'OperatorNode' && parent.op === '+') {
+    swapGroups[opGroup[parent.rank]].push(node.rank);
+    elemGroup[rank]=opGroup[parent.rank];
+    rankToValue[rank]=node.toString(); // is filled only for child of '+'
+    }
+    rank+=1
+  })
+//  console.table(swapGroups)
+}
+
+// Move some elements around
+// A node of given rank moves 'index' number of times
+// to the right for positive index and to the left for negative index
+
+let movedNode,
+targetNodeRank,
+targetNode,
+newExpression,
+body = document.getElementsByTagName("body")[0];
+
+function moveTo(expressionTree,rank,index) {
+  movedNode = nodes[rank];
+  targetNodeRank = swapGroups[elemGroup[rank]][swapGroups[elemGroup[rank]].indexOf(rank)+index];
+  targetNode = nodes[targetNodeRank];
+  newExpression = expressionTree.transform(function (node, path, parent) {
+    if (node.rank === rank) { return targetNode }
+    else if (node.rank === targetNodeRank) { return movedNode }
+    else { return node }
+  })
+//document.getElementById("expression").innerHTML += newExpression+'<br><br>';
+var newLine = document.createElement('div');
+newLine.innerHTML = newExpression+'<br><br>';
+body.appendChild(newLine);
+findSwapGroups(newExpression)
+return newExpression
+}
+
+// Add & remove buttons to allow user to move elements around
+
+let buttons = [],
+buttonsIndex,
+history = []; // keeps track of different versions of expression due to user actions
+
+function addButtons(expressionTree) {
+  buttons = [];
+  buttonsIndex = [];
+  var i, j, k, button, direction, numtimes ;
+  for (i=0; i < swapGroups.length; i++) {
+    for (j=0; j < swapGroups[i].length; j++) {
+      for (k=0; k < swapGroups[i].length; k++) {
+        if (j !== k) { 
+          if ( j < k ) { direction = 'right' }
+          else { direction = 'left' }
+          if ( j - k === 1 || k - j === 1 ) { numtimes = ''}
+          else { numtimes = math.abs(j-k); numtimes = ' '+numtimes.toString()+' times' }
+          button = document.createElement("button");
+          button.innerHTML = "move "+rankToValue[swapGroups[i][j]]+" to the "+direction+numtimes;
+          body.appendChild(button);
+          buttons.push(button);
+          buttonsIndex.push([i,j,k-j])
+        }
+      }
+    }
+  }
+  buttons.forEach(function(button, index) {
+    button.addEventListener ("click", function() {
+      rmButtons()
+      history.push(expression);
+      expression=moveTo(expression,swapGroups[buttonsIndex[index][0]][buttonsIndex[index][1]],buttonsIndex[index][2])
+      addButtons(expression)
+    })
+  })
+  button = document.createElement("button");
+  button.innerHTML = "undo";
+  body.appendChild(button);
+  buttons.push(button)
+  buttonsIndex.push([]);
+  if (history.length>0) {
+    button.addEventListener("click", function() {
+      rmButtons()
+      //var lastLine = document.createElement('div');
+      //lastLine.innerHTML = expression;
+      body.removeChild(body.lastElementChild)
+      expression=history.pop()
+      findSwapGroups(expression)
+      addButtons(expression)
+    })
+  }
+}
+
+function rmButtons() {
+  var i;
+  for (i=0; i < buttons.length; i++) { body.removeChild(buttons[i]) }
+}
+
+// Initiate expression
+
+let expression;
+
+function myFunction() {
+  var expressionInput = prompt("Please enter an expression", "1+(8+9)/2+5");
+  if (expressionInput != null) {
+    history = []
+    expression = math.parse (expressionInput)
+    var firstLine = document.createElement('div');
+    firstLine.innerHTML = expression+'<br><br>';
+    body.appendChild(firstLine)
+    rmButtons()
+    findSwapGroups(expression)
+    addButtons(expression)
+  }
+}
+
+
+</script>
+
+</body>
+</html>
