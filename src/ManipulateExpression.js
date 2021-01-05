@@ -19,7 +19,8 @@ export default function ManipulateExpression(props) {
     }, [submitInput])
 
     function getAvailOperations(expression) {
-        let rank=0, commuteGroup = [], nodes = [], availOperations = [];
+        let rank=0, commuteGroup = []
+        nodes = []; availOperations = [];
         let sign, fn, dir, target, amount, fromSign, toSign;
         expression.traverse(function (node) { node.rank = rank; nodes.push(node); rank++;  })
         //console.log(nodes)
