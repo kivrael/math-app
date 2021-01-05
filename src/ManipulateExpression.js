@@ -26,7 +26,7 @@ export default function ManipulateExpression(props) {
         //console.log(nodes)
         expressionTree.traverse(function (node, path, parent) {
             if ( ['+', '-'].includes(node.op) ) {
-                if (node.rank === 0 || (parent.op!=='+' && parent.op!=='-') ) { commuteGroup = []; } //case where nodes[0] is not plus or minus?
+                if (node.rank === 0 || (parent.op!=='+' && parent.op!=='-') ) { commuteGroup = []; }
                 node.args.forEach((child,index) => {
                     if ( child.op !== '+' && child.op !== '-' ) {
                             if ( index === 0 && node.fn === 'subtract' ) { sign = '+'}
