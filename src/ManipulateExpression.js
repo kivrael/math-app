@@ -120,7 +120,7 @@ export default function ManipulateExpression(props) {
                 let sum, sumNode, newNode, newParent
                 sum = parseInt(op.fromValue)+parseInt(op.toValue)
                 sumNode = new math.ConstantNode(math.abs(sum))
-                if ( math.max(op.fromIndex,op.toIndex) === 1 ) {   //toParent === fromParent || (op.group[op.fromIndex].fn === 'unaryMinus' && fromParent == toParent + 1) || (op.group[op.toIndex].fn === 'unaryMinus' && fromParent == toParent - 1) ) {
+                if ( math.max(op.fromIndex,op.toIndex) === 1 ) { 
                     newExpression = expressionTree.transform(function (node) {
                         newParent = fromParent === toParent - 1 ? fromParent : toParent
                         if ( node.rank === newParent ) { 
