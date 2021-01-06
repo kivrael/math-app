@@ -24,7 +24,7 @@ export default function ManipulateExpression(props) {
         let sign, fn, dir, target, amount, fromSign, toSign;
         expression.traverse(function (node) { node.rank = rank; nodes.push(node); rank++;  })
         //console.log(nodes)
-        expressionTree.traverse(function (node, path, parent) {
+        expression.traverse(function (node, path, parent) {
             if ( ['+', '-'].includes(node.op) ) {
                 if (node.rank === 0 || (parent.op!=='+' && parent.op!=='-') ) { commuteGroup = []; }
                 node.args.forEach((child,index) => {
@@ -47,8 +47,7 @@ export default function ManipulateExpression(props) {
                             amount = toIndex-fromIndex
                             dir = amount > 0 ? 'right' : 'left'
                             target = math.abs(amount) === 1 ? ' to the '+dir : ' to the '+dir+' '+math.abs(amount)+' times'
-                            //availOperations.push({key:'move '+from.rank+target, name:'move '+fromSign+from.value+target, type:'mv', index:fromIndex, amount:amount, group:commuteGroup})
-                            if ( math.abs( toIndex - fromIndex ) === 1 ) { availOperations.push({key:'move '+from.rank+target, name:'move '+fromSign+from.value+target, type:'mv', index:fromIndex, amount:amount, group:commuteGroup}) }
+                            availOperations.push({key:'move '+from.rank+target, name:'move '+fromSign+from.value+target, type:'mv', index:fromIndex, amount:amount, group:commuteGroup})
                             if (nodes[to.rank].isConstantNode && nodes[from.rank].isConstantNode) {
                                  toSign = to.sign === '+' ? '' : '-'
                                 if (fromSign === '') { availOperations.push({key:'add'+from.rank+'to'+to.rank, name:'add '+from.value+' to '+toSign+to.value, type:'+', fromValue:fromSign+from.value, toValue:toSign+to.value, from:from.rank, to:to.rank, fromIndex:fromIndex, toIndex:toIndex, group:commuteGroup}) }
@@ -103,16 +102,17 @@ export default function ManipulateExpression(props) {
             else if ( node.rank === toRank ) { toParent = parent.rank }
         })
         switch (op.type) {
-            case 'mv': // This is not currently working for abs(amount) > 1 
+            case 'mv':
                 const dir = op.amount > 0 ? +1 : -1
                 const startIndex = op.index;
                 const endIndex = startIndex + op.amount
                 let leftIndex, rightIndex
                 for (let i = startIndex; i !== endIndex ; i += dir) {
-                    leftIndex = math.min(startIndex, startIndex + dir)
-                    rightIndex = math.max(startIndex, startIndex + dir)
+                    leftIndex = math.min(i, i + dir)
+                    rightIndex = math.max(i, i + dir)
                     group = availOperations[opRank].group
                     newExpression = move(newExpression, group, leftIndex, rightIndex)
+                    getAvailOperations(newExpression)
                 }
                 break;
             case '+':
@@ -120,7 +120,7 @@ export default function ManipulateExpression(props) {
                 let sum, sumNode, newNode, newParent
                 sum = parseInt(op.fromValue)+parseInt(op.toValue)
                 sumNode = new math.ConstantNode(math.abs(sum))
-                if ( math.max(op.fromIndex,op.toIndex) === 1 ) { 
+                if ( math.max(op.fromIndex,op.toIndex) === 1 ) {
                     newExpression = expressionTree.transform(function (node) {
                         newParent = fromParent === toParent - 1 ? fromParent : toParent
                         if ( node.rank === newParent ) { 
