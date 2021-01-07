@@ -5,7 +5,7 @@ import * as math from 'mathjs'
 
 function App() {
 
-  const suggestedInput = '-5+(8+9)/2+1' // '2-3+4'
+  const suggestedInput = '-2*(-3+4+5)' // '-5+(8+9)/2+1' // '2-3+4'
 
   const [input, setInput] = useState(suggestedInput)
   const [submitInput, setSubmitInput] = useState()
