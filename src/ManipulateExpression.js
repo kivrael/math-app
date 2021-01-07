@@ -21,42 +21,57 @@ export default function ManipulateExpression(props) {
     function getAvailOperations(expression) {
         let rank=0, commuteGroup = []
         nodes = []; availOperations = [];
-        let sign, fn, dir, target, amount, fromSign, toSign;
+        let sign, fn, dir, target, amount, fromSign, toSign, opName, conj;
         expression.traverse(function (node) { node.rank = rank; nodes.push(node); rank++;  })
         //console.log(nodes)
         expression.traverse(function (node, path, parent) {
-            if ( ['+', '-'].includes(node.op) ) {
+            switch (node.op) {
+            case '+':
+            case '-':
+                if ( node.fn === 'unaryMinus' && ( node.rank === 0 || parent.op === '*' ) ) { break; }
                 if (node.rank === 0 || (parent.op!=='+' && parent.op!=='-') ) { commuteGroup = []; }
                 node.args.forEach((child,index) => {
                     if ( child.op !== '+' && child.op !== '-' ) {
-                            if ( index === 0 && node.fn === 'subtract' ) { sign = '+'}
+                            if ( index === 0 && node.fn === 'subtract' ) { sign = '+' }
                             else { sign = node.op }
                             if ( index === 0 && node.fn !== 'unaryMinus' ) { fn = 'add' }
                             else { fn = node.fn }
-                        commuteGroup.push({sign:sign, rank:child.rank, value:child.toString({parenthesis: 'auto'}), fn:fn})
+                        commuteGroup.push({op:sign, sign:sign, rank:child.rank, value:child.toString({parenthesis: 'auto'}), fn:fn})
                         }
                     })
-            }
-            else if ( commuteGroup !== [] ) {
-                commuteGroup.sort(function(a,b) { return a.rank - b.rank })
-                //console.log('commuteGroup',commuteGroup)
-                commuteGroup.forEach((from, fromIndex) =>  {
-                    commuteGroup.forEach((to,toIndex) => {
-                        if (toIndex !== fromIndex) {
-                            fromSign = from.sign === '+' ? '' : '-'
-                            amount = toIndex-fromIndex
-                            dir = amount > 0 ? 'right' : 'left'
-                            target = math.abs(amount) === 1 ? ' to the '+dir : ' to the '+dir+' '+math.abs(amount)+' times'
-                            availOperations.push({key:'move '+from.rank+target, name:'move '+fromSign+from.value+target, type:'mv', index:fromIndex, amount:amount, group:commuteGroup})
-                            if (nodes[to.rank].isConstantNode && nodes[from.rank].isConstantNode) {
-                                 toSign = to.sign === '+' ? '' : '-'
-                                if (fromSign === '') { availOperations.push({key:'add'+from.rank+'to'+to.rank, name:'add '+from.value+' to '+toSign+to.value, type:'+', fromValue:fromSign+from.value, toValue:toSign+to.value, from:from.rank, to:to.rank, fromIndex:fromIndex, toIndex:toIndex, group:commuteGroup}) }
-                                else { availOperations.push({key:'subtract'+from.rank+'to'+to.rank, name: 'substract '+from.value+' to '+toSign+to.value, type:'-', fromValue:fromSign+from.value, toValue:toSign+to.value, from:from.rank, to:to.rank, fromIndex:fromIndex, toIndex:toIndex, group:commuteGroup}) }
+                break;
+            case '*':
+                if (node.rank === 0 || parent.op !== '*' ) { commuteGroup = []; }
+                node.args.forEach((child) => {
+                    if ( child.op !== '*' ) { 
+                        commuteGroup.push( { op:node.op, rank:child.rank, value:child.toString({parenthesis: 'auto'}) } )
+                    } })
+                break;
+            default:
+                if ( commuteGroup !== [] ) {
+                    commuteGroup.sort(function(a,b) { return a.rank - b.rank })
+                    //console.log('commuteGroup',commuteGroup)
+                    commuteGroup.forEach((from, fromIndex) =>  {
+                        commuteGroup.forEach((to,toIndex) => {
+                            if (toIndex !== fromIndex) {
+                                amount = toIndex-fromIndex
+                                dir = amount > 0 ? 'right' : 'left'
+                                target = math.abs(amount) === 1 ? ' to the '+dir : ' to the '+dir+' '+math.abs(amount)+' times'
+                                fromSign = from.op === '-' ? '-' : ''
+                                availOperations.push({key:'move '+from.rank+target, name:'move '+fromSign+from.value+target, type:'mv', index:fromIndex, amount:amount, group:commuteGroup})
+                                toSign = to.op === '-' ? '-' : ''
+                                conj = to.op === '*' ? 'by' : 'to'
+                                if ( nodes[to.rank].isConstantNode && nodes[from.rank].isConstantNode ) {
+                                    opName = from.op === '+' ? 'add' : from.op === '-' ? 'subtract' : 'multiply'
+                                    availOperations.push({key:opName+from.rank+conj+to.rank, name:opName+' '+from.value+' '+conj+' '+toSign+to.value, type:from.op, fromValue:fromSign+from.value, toValue:toSign+to.value, from:from.rank, to:to.rank, fromIndex:fromIndex, toIndex:toIndex, group:commuteGroup}) }
+                                else if ( from.op === '*' && ( nodes[to.rank].fn === 'unaryMinus' || nodes[from.rank].fn === 'unaryMinus' ) ) {
+                                    availOperations.push({key:'*neg'+from.rank+conj+to.rank, name:'product with negative : '+from.value+' '+conj+' '+toSign+to.value, type:'*neg', fromValue:fromSign+from.value, toValue:toSign+to.value, from:from.rank, to:to.rank, fromIndex:fromIndex, toIndex:toIndex, group:commuteGroup}) }
                             }
-                        }
+                        })
                     })
-                })
-                commuteGroup = [];
+                    commuteGroup = [];
+                }
+                break;
             }
         })
     }
@@ -65,25 +80,35 @@ export default function ManipulateExpression(props) {
         let newExpr
         let leftRank = group[leftIndex].rank
         let rightRank = group[rightIndex].rank
-        newExpr = expression.transform( function (node, path, parent) {
-            if ( node.isOperatorNode && node.fn === 'unaryMinus' ) {
-                if ( node.args[0].rank === leftRank ) {
-                    return group[rightIndex].sign === '-' ? new math.OperatorNode('-','unaryMinus',[nodes[group[rightIndex].rank]]) : nodes[group[rightIndex].rank] }
-                else { return node } }
-            else if ( node.isOperatorNode && node.args[1].rank === rightRank ) {
-                node.op = group[leftIndex].sign
-                if ( group[leftIndex].fn === 'unaryMinus' ) { node.fn = 'subtract' }
-                else { node.fn = group[leftIndex].fn }
-                return node
-                }
-            else if ( node.isOperatorNode && node.args[1].rank === leftRank ) { 
-                node.op = group[rightIndex].sign; node.fn = group[rightIndex].fn; return node }
-            else if ( node.rank === leftRank ) {
-                if ( path === 'args[0]' && group[rightIndex].sign === '-' ) {
-                    return new math.OperatorNode('-','unaryMinus',[nodes[group[rightIndex].rank]]) }
-                else { return nodes[rightRank] } }
-            else if ( node.rank === rightRank ) { return nodes[leftRank] }
-            else {return node} })
+        newExpr = expression.transform( function (node, path) {
+            switch (group[leftIndex].op) {
+                case '+':
+                case '-':
+                    if ( node.isOperatorNode && node.fn === 'unaryMinus' ) {
+                        if ( node.args[0].rank === leftRank ) {
+                            return group[rightIndex].sign === '-' ? new math.OperatorNode('-','unaryMinus',[nodes[group[rightIndex].rank]]) : nodes[group[rightIndex].rank] }
+                        else { return node } }
+                    else if ( node.isOperatorNode && node.args[1].rank === rightRank ) {
+                        node.op = group[leftIndex].sign
+                        if ( group[leftIndex].fn === 'unaryMinus' ) { node.fn = 'subtract' }
+                        else { node.fn = group[leftIndex].fn }
+                        return node
+                        }
+                    else if ( node.isOperatorNode && node.args[1].rank === leftRank ) { 
+                        node.op = group[rightIndex].sign; node.fn = group[rightIndex].fn; return node }
+                    else if ( node.rank === leftRank ) {
+                        if ( path === 'args[0]' && group[rightIndex].sign === '-' ) {
+                            return new math.OperatorNode('-','unaryMinus',[nodes[group[rightIndex].rank]]) }
+                        else { return nodes[rightRank] } }
+                    else if ( node.rank === rightRank ) { return nodes[leftRank] }
+                    else {return node}
+                case '*':
+                    if ( node.rank === leftRank ) { return nodes[rightRank] }
+                    else if ( node.rank === rightRank ) { return nodes[leftRank] }
+                    else { return node }
+                default:
+            }
+        })
        return newExpr
     }  
 
@@ -159,6 +184,38 @@ export default function ManipulateExpression(props) {
                             else { return node }
                         }) }
                 }
+
+                break;
+            case '*': // only for the two first elements of the product
+                let product, productNode
+                product = parseInt(op.fromValue)*parseInt(op.toValue)
+                productNode = new math.ConstantNode(math.abs(product))
+                if ( math.max(op.toIndex,op.fromIndex) === 1 ) {
+                    newExpression = expressionTree.transform(function (node) {
+                        if ( node.rank === toParent ) { return productNode }
+                        else { return node }
+                    })
+                }
+                break;
+            case '*neg': // only for the two first elements of the product
+                if ( math.max(op.toIndex,op.fromIndex) === 1 ) {
+                    if ( nodes[op.to].fn === 'unaryMinus' && nodes[op.from].fn === 'unaryMinus' ) {
+                        newExpression = expressionTree.transform(function (node) {
+                            if ( [toRank,fromRank].includes(node.rank) ) { return node.args[0] }
+                            else { return node }
+                        }) }
+                    else {
+                        newExpression = expressionTree.transform(function (node) {
+                            if ( [toRank,fromRank].includes(node.rank) && node.fn === 'unaryMinus' ) { return node.args[0] }
+                            else { return node }
+                        })
+                        let rank = 0; newExpression.traverse(function (node) { node.rank=rank; rank++ })
+                        newExpression = newExpression.transform(function (node) {
+                            if ( node.rank === toParent ) { return new math.OperatorNode('-','unaryMinus',[new math.ParenthesisNode(node)]) }
+                            else { return node }
+                        })
+                    }
+                }                
                 break;
             default:
         }
@@ -178,6 +235,17 @@ export default function ManipulateExpression(props) {
         }
     }
     
+
+    function removeParenthesis() {
+        let unnecessaryParenthesis = false
+        let newExpression = expressionTree.transform(function (node) {
+            if ( node.isParenthesisNode && ( node.content.isConstantNode || node.content.fn === 'unaryMinus' ) ) { unnecessaryParenthesis = true; return node.content }
+            else { return node }
+        })
+        if (unnecessaryParenthesis) { setExpressionTree(newExpression) }
+    }
+
+    removeParenthesis()
     getAvailOperations(expressionTree)
     //console.log(availOperations)
 
