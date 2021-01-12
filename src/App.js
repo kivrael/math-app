@@ -15,23 +15,24 @@ function App() {
 
   const textStyle = { color: 'white', fontSize: '20px' }
 
-  function onChangeInput(e) { setInput(e.target.value) }
-  function onClickInputBox(e) { if(!inputClicked) {setInputClicked(true)}; e.target.select() }
-  function onKeyDown(e) { if (e.keyCode === 13) { handleSubmit() } }
+  function handleOnChangeInput(e) { setInput(e.target.value) }
+  function handleOnClickInputBox(e) { 
+    e.target.select()
+    if(!inputClicked) {setInputClicked(true)}; 
+    }
+  function handleOnKeyDown(e) { if (e.keyCode === 13) { handleSubmit() } }
   function handleSubmit() { 
     if (input!=='') {
       try { math.parse(input)
-        setSubmitError(false)
         setSubmitInput(input) 
         setInputSubmitted(true)
         setInput('')
+        setSubmitError(false)
         math.parse(input).traverse(function(node) { if ( node.fn === 'unaryPlus' || ( node.fn === 'unaryMinus'  &&  ['unaryMinus','unaryPlus'].includes(node.args[0].fn) ) )  setSubmitError(true) } )
       }
       catch(err) { setSubmitError(true) }
     }
   }
-
-
 
   return (
     <>
@@ -40,10 +41,10 @@ function App() {
       <input className='input' 
         type='text' 
         style={{color:inputClicked?'black':'grey'}} 
-        value={input} 
-        onClick={onClickInputBox} 
-        onChange={onChangeInput} 
-        onKeyDown={onKeyDown}/>
+        value={input}
+        onChange={handleOnChangeInput} 
+        onClick={handleOnClickInputBox} 
+        onKeyDown={handleOnKeyDown}/>
       <button className='submit' onClick={handleSubmit}>submit</button>
       {inputSubmitted && !submitError &&
         <ManipulateExpression submitInput={submitInput}/>

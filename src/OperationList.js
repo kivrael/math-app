@@ -1,23 +1,17 @@
 import React from 'react'
 
-export default function OperationList({availOperations, executeOperation}) {
+export default function OperationList({availOperations}) {
     let buttons = []
-    availOperations.forEach( (op,index) => { 
-        if ( op.type === 'mv' ) {
-            buttons.push( <button key={op.key} onClick={(e) => executeOperation(index)}>{op.name}</button> )
-        }  
-    })
-    buttons.push( <p key='vspace'></p> )
-    availOperations.forEach( (op,index) => { 
-        if ( op.type === '+' ) {
-            buttons.push( <button key={op.key} onClick={(e) => executeOperation(index)}>{op.name}</button> )
-        }  
-    })
-    buttons.push( <p key='vspace2'></p> )
-    availOperations.forEach( (op,index) => { 
-        if ( op.type === '-' ) {
-            buttons.push( <button key={op.key} onClick={(e) => executeOperation(index)}>{op.name}</button> )
-        }  
-    })
+    const allOperations = ['move', 'add', 'subtract', 'multiply', 'negativeProduct']
+
+    for (let operationType of allOperations) {
+        availOperations.forEach( (operation,index) => { 
+            if ( operation.type === operationType ) {
+                buttons.push( <button key={operation.key} onClick={(e) => operation.execute()}>{operation.name}</button> )
+            }  
+        })
+        buttons.push( <p key={'vspace'+operationType}></p> )
+    }
+
     return buttons
 }
